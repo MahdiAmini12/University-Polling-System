@@ -2,32 +2,50 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>ورود</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>سامانه نظرسنجی اساتید</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Vazirmatn', sans-serif;
       background: linear-gradient(to right, #667eea, #764ba2);
       margin: 0;
-      padding: 0;
+      padding: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+
+    .container {
+      text-align: center;
+      background-color: #ffffffcc;
+      padding: 22px 32px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    p {
+      color: #555;
+      font-size: 16px;
+      margin-bottom: 25px;
     }
 
     form {
-      background-color: #ffffffcc;
-      padding: 30px 40px;
-      border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-      width: 320px;
-      text-align: right;
-    }
-
-    h2 {
-      text-align: center;
-      color: #333;
-      margin-bottom: 25px;
+      background-color: transparent;
+      padding: 0;
+      width: 100%;
     }
 
     label, input, select {
@@ -65,41 +83,124 @@
     button:hover {
       background-color: #5a3c91;
     }
+
+    .stats-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      max-width: 1200px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background-color: #ffffffdd;
+      border-radius: 10px;
+      padding: 0px; 
+      width: 200px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 0;
+      animation: fadeIn 0.5s ease forwards;
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .stat-card h3 {
+      color: #333;
+      font-size: 16px; /* کاهش اندازه فونت برای کاهش ارتفاع */
+      margin: 0 0 5px; /* کاهش margin برای کاهش ارتفاع */
+    }
+
+    .stat-card p {
+      color: #764ba2;
+      font-size: 20px; /* کاهش اندازه فونت برای کاهش ارتفاع */
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .footer {
+      font-family: 'Vazirmatn', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        width: 90%;
+        padding: 20px;
+      }
+
+      .stats-container {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .stat-card {
+        width: 80%;
+        max-width: 300px;
+      }
+    }
   </style>
 </head>
 <body>
-  <form method="post">
-    <h2>ورود</h2>
-    <label>شماره دانشجویی:</label>
-    <input name="student_id" required>
+  <div class="stats-container">
+    <div class="stat-card">
+      <h3>دانشجویان لاگین‌شده</h3>
+      <p>{{ student_count }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>نظرات ثبت‌شده</h3>
+      <p>{{ comment_count }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>تعداد اساتید</h3>
+      <p>{{ professor_count }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>تعداد دروس</h3>
+      <p>{{ course_count }}</p>
+    </div>
+  </div>
 
-    <label>رشته تحصیلی:</label>
-    <select name="major_id" required>
-      <option value="" disabled selected>انتخاب کنید</option>
-      {% for major in majors %}
-        <option value="{{ major.id }}">{{ major.name }}</option>
-      {% endfor %}
-    </select>
+  <div class="container">
+    <h1>به سامانه نظرسنجی اساتید خوش آمدید!</h1>
+    <p>با این سامانه، به‌راحتی نظرات خود را درباره درس‌ها و اساتید ثبت کنید.</p>
+    <form method="post">
+      <label>شماره دانشجویی:</label>
+      <input name="student_id" required>
 
-    <button type="submit">ورود</button>
-  </form>
+      <label>رشته تحصیلی:</label>
+      <select name="major_id" required>
+        <option value="" disabled selected>انتخاب کنید</option>
+        {% for major in majors %}
+          <option value="{{ major.id }}">{{ major.name }}</option>
+        {% endfor %}
+      </select>
+
+      <button type="submit">ورود</button>
+    </form>
+  </div>
   <div class="footer">
     Designed by Mohammad Mahdi Rasool Amini
   </div>
+
+  {% if error_message %}
+    <script>
+      alert("{{ error_message }}");
+    </script>
+  {% endif %}
 </body>
 </html>
-
-
-<!-- <h2>ورود</h2>
-<form method="post">
-  شماره دانشجویی: <input name="student_id" required><br>
-  رشته تحصیلی:
-  <select name="major_id" required>
-    <option value="" disabled selected>انتخاب کنید</option>
-    {% for major in majors %}
-      <option value="{{ major.id }}">{{ major.name }}</option>
-    {% endfor %}
-  </select>
-  <br>
-  <button type="submit">ورود</button>
-</form> -->
