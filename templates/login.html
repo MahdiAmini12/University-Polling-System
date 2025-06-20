@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>سامانه نظرسنجی اساتید</title>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     body {
       font-family: 'Vazirmatn', sans-serif;
@@ -48,11 +48,12 @@
       width: 100%;
     }
 
-    label, input, select {
+    label {
       display: block;
-      width: 100%;
-      margin-bottom: 15px;
+      text-align: right;
+      margin-bottom: 5px;
       font-size: 14px;
+      font-weight: 600;
     }
 
     input, select {
@@ -60,12 +61,29 @@
       border-radius: 8px;
       border: 1px solid #ccc;
       transition: all 0.3s ease;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     input:focus, select:focus {
       border-color: #764ba2;
       outline: none;
       box-shadow: 0 0 5px #764ba280;
+    }
+
+    /* بخش مخصوص رشته و جستجو کنار هم */
+    .field-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .field-row > div {
+      flex: 1;
+      min-width: 0;
     }
 
     button {
@@ -78,6 +96,7 @@
       font-size: 16px;
       cursor: pointer;
       transition: background-color 0.3s ease;
+      margin-top: 10px;
     }
 
     button:hover {
@@ -117,13 +136,13 @@
 
     .stat-card h3 {
       color: #333;
-      font-size: 16px; /* کاهش اندازه فونت برای کاهش ارتفاع */
-      margin: 0 0 5px; /* کاهش margin برای کاهش ارتفاع */
+      font-size: 16px;
+      margin: 0 0 5px;
     }
 
     .stat-card p {
       color: #764ba2;
-      font-size: 20px; /* کاهش اندازه فونت برای کاهش ارتفاع */
+      font-size: 20px;
       font-weight: 700;
       margin: 0;
     }
@@ -151,6 +170,10 @@
       .stat-card {
         width: 80%;
         max-width: 300px;
+      }
+
+      .field-row {
+        flex-direction: column;
       }
     }
   </style>
@@ -180,19 +203,40 @@
     <p>با این سامانه، به‌راحتی نظرات خود را درباره درس‌ها و اساتید ثبت کنید.</p>
     <form method="post">
       <label>شماره دانشجویی:</label>
-      <input name="student_id" required>
+      <input name="student_id" required />
 
-      <label>رشته تحصیلی:</label>
-      <select name="major_id" required>
-        <option value="" disabled selected>انتخاب کنید</option>
-        {% for major in majors %}
-          <option value="{{ major.id }}">{{ major.name }}</option>
-        {% endfor %}
-      </select>
+      <div class="field-row">
+        <div>
+          <label>رشته تحصیلی:</label>
+          <select name="major_id" required>
+            <option value="" disabled selected>انتخاب کنید</option>
+            {% for major in majors %}
+              <option value="{{ major.id }}">{{ major.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>جستجوی رشته:</label>
+          <input
+            list="majors-list"
+            name="major_search"
+            placeholder="جستجوی رشته..."
+            autocomplete="off"
+            oninput="clearMajorSelect()"
+          />
+          <datalist id="majors-list">
+            {% for major in majors %}
+              <option value="{{ major.name }}"></option>
+            {% endfor %}
+          </datalist>
+        </div>
+      </div>
 
       <button type="submit">ورود</button>
     </form>
   </div>
+
   <div class="footer">
     Designed by Mohammad Mahdi Rasool Amini
   </div>
@@ -202,5 +246,27 @@
       alert("{{ error_message }}");
     </script>
   {% endif %}
+
+  <script>
+    // اگر لازم دارید، می‌توانید جاوااسکریپت برای تعامل بین جستجو و انتخاب اضافه کنید
+    // مثلا وقتی رشته‌ای در جستجو انتخاب شد، گزینه متناظر در select انتخاب شود
+    function clearMajorSelect() {
+      // در اینجا می‌توانید منطق انتخاب خودکار در select را اضافه کنید
+      // فعلاً فقط برای نمونه
+      const input = document.querySelector('input[name="major_search"]');
+      const select = document.querySelector('select[name="major_id"]');
+      if (!input.value) {
+        select.selectedIndex = 0; // reset
+      } else {
+        // می‌توانید اینجا بر اساس input.value گزینه select را انتخاب کنید (اختیاری)
+        for (let i = 0; i < select.options.length; i++) {
+          if (select.options[i].text === input.value) {
+            select.selectedIndex = i;
+            break;
+          }
+        }
+      }
+    }
+  </script>
 </body>
 </html>
