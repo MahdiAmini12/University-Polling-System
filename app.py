@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash
+from flask import Flask, render_template, request, redirect, session, flash, jsonify
 import sqlite3
 
 app = Flask(__name__)
@@ -63,15 +63,62 @@ def login():
         course_count=course_count
     )
 
+
 @app.route("/courses")
 def courses():
     if "student_id" not in session:
         return redirect("/")
 
     category_filter = request.args.get("category")
+    search_query = request.args.get("q", "").strip()
+
     db = get_db()
+
+    # پایه کوئری
     query = """
         SELECT c.id, c.name, c.category, GROUP_CONCAT(p.name, ', ') as professors
+        FROM Courses c
+        JOIN CourseMajor cm ON c.id = cm.course_id
+        LEFT JOIN CourseProfessor cp ON c.id = cp.course_id
+        LEFT JOIN Professors p ON cp.professor_id = p.id
+        WHERE cm.major_id = ?
+    """
+    params = [session["major_id"]]
+
+    # فیلتر دسته بندی
+    if category_filter:
+        query += " AND c.category = ?"
+        params.append(category_filter)
+
+    # فیلتر جستجو در درس یا استاد
+    if search_query:
+        query += " AND (c.name LIKE ? OR p.name LIKE ?)"
+        params.extend([f"%{search_query}%", f"%{search_query}%"])
+
+    query += " GROUP BY c.id"
+
+    courses = db.execute(query, params).fetchall()
+    db.close()
+
+    return render_template("courses.html", courses=courses, selected_category=category_filter, search_query=search_query)
+
+# API جستجوی اتوکامپلیت
+@app.route("/search_suggestions")
+def search_suggestions():
+    if "student_id" not in session:
+        return jsonify([])
+
+    category_filter = request.args.get("category")
+    q = request.args.get("q", "").strip()
+
+    if not q:
+        return jsonify([])
+
+    db = get_db()
+
+    # جستجو در نام درس و استادها
+    query = """
+        SELECT DISTINCT c.name AS course_name, p.name AS professor_name, c.category
         FROM Courses c
         JOIN CourseMajor cm ON c.id = cm.course_id
         LEFT JOIN CourseProfessor cp ON c.id = cp.course_id
@@ -84,10 +131,34 @@ def courses():
         query += " AND c.category = ?"
         params.append(category_filter)
 
-    query += " GROUP BY c.id"
-    courses = db.execute(query, params).fetchall()
+    query += " AND (c.name LIKE ? OR p.name LIKE ?)"
+    params.extend([f"%{q}%", f"%{q}%"])
+
+    query += " LIMIT 10"
+
+    results = db.execute(query, params).fetchall()
     db.close()
-    return render_template("courses.html", courses=courses, selected_category=category_filter)
+
+    suggestions = []
+    for row in results:
+        # اگر نام درس با q تطابق داشت
+        if row["course_name"] and q in row["course_name"]:
+            suggestions.append({"type": "درس", "value": row["course_name"]})
+        # اگر نام استاد با q تطابق داشت
+        if row["professor_name"] and q in row["professor_name"]:
+            suggestions.append({"type": "استاد", "value": row["professor_name"]})
+
+    # حذف موارد تکراری (اگر هم استاد و هم درس یکی بود)
+    seen = set()
+    unique_suggestions = []
+    for s in suggestions:
+        key = (s["type"], s["value"])
+        if key not in seen:
+            seen.add(key)
+            unique_suggestions.append(s)
+
+    return jsonify(unique_suggestions)
+
 
 @app.route("/rate/<int:course_id>", methods=["GET", "POST"])
 def rate(course_id):
@@ -160,7 +231,9 @@ def stats(course_id):
                     prof = db.execute("SELECT id, name FROM Professors WHERE id = ?", (pid,)).fetchone()
                     if prof:
                         stat = db.execute("""
-                            SELECT AVG(q1) as avg_q1, AVG(q2) as avg_q2, AVG(q3) as avg_q3, AVG(q4) as avg_q4
+                            SELECT 
+                                AVG(q1) as avg_q1, AVG(q2) as avg_q2, AVG(q3) as avg_q3, AVG(q4) as avg_q4,
+                                COUNT(*) as vote_count
                             FROM Votes WHERE course_id = ? AND professor_id = ?
                         """, (course_id, pid)).fetchone()
                         compare_results.append({
@@ -169,7 +242,8 @@ def stats(course_id):
                             "avg_q1": stat["avg_q1"],
                             "avg_q2": stat["avg_q2"],
                             "avg_q3": stat["avg_q3"],
-                            "avg_q4": stat["avg_q4"]
+                            "avg_q4": stat["avg_q4"],
+                            "vote_count": stat["vote_count"]
                         })
             else:
                 compare_results = None
@@ -184,7 +258,9 @@ def stats(course_id):
                 if prof:
                     selected_professor_name = prof["name"]
                     stats = db.execute("""
-                        SELECT AVG(q1) as avg_q1, AVG(q2) as avg_q2, AVG(q3) as avg_q3, AVG(q4) as avg_q4
+                        SELECT 
+                            AVG(q1) as avg_q1, AVG(q2) as avg_q2, AVG(q3) as avg_q3, AVG(q4) as avg_q4,
+                            COUNT(*) as vote_count
                         FROM Votes WHERE course_id = ? AND professor_id = ?
                     """, (course_id, professor_id)).fetchone()
                     comments = db.execute("""
@@ -203,6 +279,7 @@ def stats(course_id):
         compare_results=compare_results,
         selected_professors=[int(p) for p in selected_professors] if selected_professors else []
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True)
