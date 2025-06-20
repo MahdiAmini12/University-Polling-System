@@ -1,43 +1,4 @@
-\<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -180,6 +141,7 @@
             <th>میزان سختگیری</th>
             <th>نحوه تدریس</th>
             <th>برخورد با دانشجو</th>
+            <th>تعداد نظرات</th>
           </tr>
         </thead>
         <tbody>
@@ -190,6 +152,7 @@
               <td>{{ prof_stat.avg_q2|round(2) if prof_stat.avg_q2 else 'بدون داده' }}</td>
               <td>{{ prof_stat.avg_q3|round(2) if prof_stat.avg_q3 else 'بدون داده' }}</td>
               <td>{{ prof_stat.avg_q4|round(2) if prof_stat.avg_q4 else 'بدون داده' }}</td>
+              <td>{{ prof_stat.vote_count }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -201,6 +164,7 @@
         <li>میزان سختگیری: {{ stats.avg_q2 | round(2) if stats.avg_q2 else 'بدون داده' }}</li>
         <li>نحوه تدریس: {{ stats.avg_q3 | round(2) if stats.avg_q3 else 'بدون داده' }}</li>
         <li>برخورد با دانشجو: {{ stats.avg_q4 | round(2) if stats.avg_q4 else 'بدون داده' }}</li>
+        <li><strong>تعداد نظرات:</strong> {{ stats.vote_count }}</li>
       </ul>
 
       <h4>نظرات:</h4>
