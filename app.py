@@ -9,22 +9,84 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+
+
+def get_most_popular_professor(db):
+    # میانگین‌های کلی برای Bayesian average (C و m)
+    # C: میانگین امتیاز کلی اساتید
+    # m: حداقل تعداد رأی برای اعتبار امتیاز
+    # اینها را از داده‌ها استخراج می‌کنیم
+
+    # فیلتر کردن درس‌های عمومی (مثلا category != 'عمومی')
+    # فرض می‌کنیم جدول Courses ستون category دارد و 'عمومی' به صورت رشته ذخیره شده است
+
+    # ابتدا میانگین کل و تعداد رأی کل برای اساتید (درس‌های غیر عمومی)
+    total_stats = db.execute("""
+        SELECT 
+            AVG(( (q1 + (5 - q2) + q3 + q4) / 4.0 )) as avg_score,
+            COUNT(*) as total_votes
+        FROM Votes v
+        JOIN Courses c ON v.course_id = c.id
+        WHERE c.category != 'عمومی'
+    """).fetchone()
+
+    C = total_stats["avg_score"] or 0
+    total_votes = total_stats["total_votes"] or 0
+    m = 5  # حداقل تعداد رأی برای اعتبار (می‌توانید عدد دلخواه بگذارید)
+
+    # حالا امتیاز هر استاد را حساب می‌کنیم با فیلتر درس غیر عمومی
+    professors = db.execute("""
+        SELECT 
+            p.id, p.name, p.photo_url,
+            COUNT(*) as vote_count,
+            AVG(q1) as avg_q1,
+            AVG(q2) as avg_q2,
+            AVG(q3) as avg_q3,
+            AVG(q4) as avg_q4
+        FROM Professors p
+        JOIN Votes v ON p.id = v.professor_id
+        JOIN Courses c ON v.course_id = c.id
+        WHERE c.category != 'عمومی'
+        GROUP BY p.id
+    """).fetchall()
+
+    best_professor = None
+    best_score = -1
+
+    for prof in professors:
+        # امتیاز معکوس برای سختگیری
+        avg_q2_inverted = 5 - prof["avg_q2"] if prof["avg_q2"] is not None else 0
+
+        # میانگین نمره استاد
+        avg_rating = (prof["avg_q1"] + avg_q2_inverted + prof["avg_q3"] + prof["avg_q4"]) / 4
+
+        # Bayesian average
+        n = prof["vote_count"]
+        bayesian_score = (n / (n + m)) * avg_rating + (m / (n + m)) * C
+
+        if bayesian_score > best_score:
+            best_score = bayesian_score
+            best_professor = prof
+
+    return best_professor, best_score
+
 @app.route("/", methods=["GET", "POST"])
 def login():
     db = get_db()
     majors = db.execute("SELECT * FROM Majors").fetchall()
 
-    # استخراج آمارها
     student_count = db.execute("SELECT COUNT(DISTINCT student_id) as count FROM Students").fetchone()["count"]
     comment_count = db.execute("SELECT COUNT(*) as count FROM Votes").fetchone()["count"]
     professor_count = db.execute("SELECT COUNT(*) as count FROM Professors").fetchone()["count"]
     course_count = db.execute("SELECT COUNT(*) as count FROM Courses").fetchone()["count"]
 
+    # دریافت استاد محبوب و امتیازش
+    popular_professor, popular_score = get_most_popular_professor(db)
+
     if request.method == "POST":
         student_id = request.form["student_id"]
         major_id = request.form["major_id"]
 
-        # بررسی اینکه آیا دانشجو قبلاً رشته‌ای انتخاب کرده
         existing_student = db.execute(
             "SELECT major_id FROM Students WHERE student_id = ?",
             (student_id,)
@@ -33,12 +95,10 @@ def login():
         if existing_student:
             current_major_id = existing_student["major_id"]
             if current_major_id != int(major_id):
-                # اگر رشته جدید با رشته قبلی متفاوت باشد، پیام خطا
                 session["error_message"] = "شما قبلاً رشته دیگری انتخاب کرده‌اید و نمی‌توانید رشته جدید انتخاب کنید."
                 db.close()
                 return redirect("/")
 
-        # اگر دانشجو قبلاً رشته‌ای انتخاب نکرده یا رشته همان است، ذخیره کن
         db.execute("""
             INSERT INTO Students (student_id, major_id) VALUES (?, ?)
             ON CONFLICT(student_id) DO UPDATE SET major_id=excluded.major_id
@@ -50,9 +110,9 @@ def login():
         db.close()
         return redirect("/courses")
 
-    # اگر پیام خطا وجود داشته باشد، آن را به قالب پاس می‌دهیم
     error_message = session.pop("error_message", None)
     db.close()
+
     return render_template(
         "login.html",
         majors=majors,
@@ -60,8 +120,11 @@ def login():
         student_count=student_count,
         comment_count=comment_count,
         professor_count=professor_count,
-        course_count=course_count
+        course_count=course_count,
+        popular_professor=popular_professor,
+        popular_score=popular_score
     )
+
 
 
 @app.route("/courses")
